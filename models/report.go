@@ -44,5 +44,4 @@ type TargetCostData struct {
 type ReportConfig struct {
 	ReportID     string           `json:"ReportID" bson:"_id"`
 	TargetConfig map[string]int64 `json:"TargetConfig" bson:"target_config"`
-	Timestamp    int64            `json:"Timestamp" bson:"timestamp"`
 }

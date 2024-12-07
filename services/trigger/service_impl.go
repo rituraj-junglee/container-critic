@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"time"
 
 	"github.com/rituraj-junglee/container-critic/models"
 	"github.com/rituraj-junglee/container-critic/repo/reportconfig"
@@ -60,14 +59,12 @@ func (s *service) TrivyTrigger(ctx context.Context, triggerReq models.TriggerReq
 		return
 	}
 
-	now := time.Now().UnixNano() / int64(time.Millisecond)
 	// Save the report in the database
 	reportConfig := models.ReportConfig{
 		ReportID:     reportReq.ClusterName,
-		Timestamp:    now,
 		TargetConfig: report.TargetConfig,
 	}
-	err = s.reportconfigrepo.UpdateReportConfig(ctx, reportConfig)
+	err = s.reportconfigrepo.CreateReportConfig(ctx, reportConfig)
 	if err != nil {
 		log.Println("Error saving report: ", err)
 	}

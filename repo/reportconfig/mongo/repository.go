@@ -23,10 +23,14 @@ func NewRepository(mongoClient *mongo.Client, mongodb string) reportconfig.Repos
 	}
 }
 
-func (r *repository) UpdateReportConfig(ctx context.Context, report models.ReportConfig) (err error) {
-	filter := bson.M{"_id": report.ReportID}
+func (r *repository) CreateReportConfig(ctx context.Context, report models.ReportConfig) (err error) {
+	filter := bson.M{
+		"_id": report.ReportID,
+	}
 	opts := options.Update().SetUpsert(true)
-	update := bson.M{"$set": report}
+	update := bson.M{
+		"$setOnInsert": report,
+	}
 
 	_, err = r.mongoCLient.Database(r.mongodb).
 		Collection("reports").

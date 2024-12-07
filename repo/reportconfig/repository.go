@@ -7,6 +7,6 @@ import (
 )
 
 type Repository interface {
-	UpdateReportConfig(ctx context.Context, report models.ReportConfig) (err error)
+	CreateReportConfig(ctx context.Context, report models.ReportConfig) (err error)
 	GetReportConfig(ctx context.Context, reportID string) (report models.ReportConfig, err error)
 }
