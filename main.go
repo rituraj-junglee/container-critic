@@ -14,7 +14,8 @@ import (
 	"github.com/rituraj-junglee/container-critic/services/report"
 	"github.com/rituraj-junglee/container-critic/services/slacker"
 	"github.com/rituraj-junglee/container-critic/services/trigger"
-	triggersvc "github.com/rituraj-junglee/container-critic/services/trigger/service"
+	triggertransport "github.com/rituraj-junglee/container-critic/services/trigger/transport"
+	triggertransportHttp "github.com/rituraj-junglee/container-critic/services/trigger/transport/http"
 	"github.com/slack-go/slack"
 	"github.com/slack-go/slack/socketmode"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -82,8 +83,9 @@ func main() {
 	var triggerservice trigger.Service
 	{
 		triggerservice = trigger.NewService(app, reportservice, slackservice, reportconfigrepo)
-		handler := triggersvc.MakeHTTPHandler(triggerservice, nil, nil)
-		httpRouter.PathPrefix("/slack/trigger").Handler(handler)
+		triggerserviceEndpoint := triggertransport.Endpoints(triggerservice)
+		handler := triggertransportHttp.NewHTTPHandler(&triggerserviceEndpoint)
+		httpRouter.PathPrefix("/slack").Handler(handler)
 	}
 
 	go slackservice.ReadMessages()

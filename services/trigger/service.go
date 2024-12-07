@@ -6,9 +6,10 @@ import (
 	"github.com/rituraj-junglee/container-critic/models"
 )
 
-//go:generate mwgen -type=Service -template=http -outDir=service -filePrefix=_
+// @microgen http
+
 type Service interface {
-	// http-path /slack/trigger/trivy
-	// http-method POST
+	// @http-method POST
+	// @http-path  slack/trigger/trivy
 	TrivyTrigger(ctx context.Context, triggerReq models.TriggerRequest) (err error)
 }
