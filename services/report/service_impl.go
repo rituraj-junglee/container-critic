@@ -4,42 +4,64 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"log"
+	"time"
 
 	"github.com/rituraj-junglee/container-critic/models"
+	"github.com/rituraj-junglee/container-critic/repo/reportconfig"
 	"github.com/rituraj-junglee/container-critic/repo/reportmeta"
 )
 
 type service struct {
 	timeAdjustedRiskEnabled bool
 	reportmetarepo          reportmeta.Repository
+	reportconfigrepo        reportconfig.Repository
 }
 
-func NewService(reportmetarepo reportmeta.Repository) Service {
+func NewService(timeAdjustedRiskEnabled bool, reportmetarepo reportmeta.Repository, reportconfigrepo reportconfig.Repository) Service {
 	return &service{
-		timeAdjustedRiskEnabled: false,
+		timeAdjustedRiskEnabled: timeAdjustedRiskEnabled,
 		reportmetarepo:          reportmetarepo,
+		reportconfigrepo:        reportconfigrepo,
 	}
 }
 
 func (s *service) GenerateReport(ctx context.Context, reportReq models.ReportRequest) (reportRes models.ReportResponse, err error) {
+	clusterName := reportReq.ClusterName
+	targetConfig := make(map[string]int64)
+
 	report := s.generateReport(ctx, reportReq)
+	if s.timeAdjustedRiskEnabled {
+		prevReport, err := s.reportconfigrepo.GetReportConfig(ctx, clusterName)
+		if err != nil {
+			log.Println("Error getting report config: ", err)
+		}
+
+		if prevReport.ReportID != "" {
+			report = s.adjustRiskCost(ctx, report, prevReport)
+		}
+	}
 
 	temp := s.generateMarkdown(report)
 
+	now := time.Now().UnixMilli()
+	for _, result := range report.ReportResults {
+		targetConfig[result.Target] = now
+	}
+
 	reportRes = models.ReportResponse{
-		Template: temp,
+		Template:     temp,
+		TotalCost:    report.TotalCost,
+		TargetConfig: targetConfig,
 	}
 
 	return
 }
 
-// TODO: Implement the service methods
-func (s *service) generateReportTemplate(report models.Report) string {
-	return fmt.Sprintf("Report for cluster %s\nTotal Cost: %f\n", report.ClusterName, report.TotalCost)
-}
-
 func (s *service) generateReport(ctx context.Context, req models.ReportRequest) (res models.Report) {
 	res.ClusterName = req.ClusterName
+	res.Namespace = req.Namespace
+	res.Kind = req.Kind
 
 	for _, finding := range req.Findings {
 		for _, result := range finding.Results {
@@ -97,28 +119,6 @@ func (s *service) calculateTargetCostData(ctx context.Context, result models.Res
 		)
 	}
 
-	if s.timeAdjustedRiskEnabled {
-		growthRatePerDay, _ := s.reportmetarepo.GetGrowthRatePerDay(ctx, result.Target)
-		vulnerabilityCost = calculateTimeAdjustedRisk(
-			result.Target,
-			vulnerabilityCost,
-			1,
-			growthRatePerDay,
-		)
-		misConfigCost = calculateTimeAdjustedRisk(
-			result.Target,
-			misConfigCost,
-			1,
-			growthRatePerDay,
-		)
-		secretsCost = calculateTimeAdjustedRisk(
-			result.Target,
-			secretsCost,
-			1,
-			growthRatePerDay,
-		)
-	}
-
 	cd = models.TargetCostData{
 		Target:            result.Target,
 		VulnerabilityCost: vulnerabilityCost,
@@ -145,20 +145,25 @@ func (s *service) generateMarkdown(report models.Report) string {
 
 	// Add metadata
 	markdown.WriteString(fmt.Sprintf("# Report for Cluster: %s\n\n", report.ClusterName))
-	markdown.WriteString(fmt.Sprintf("## Namespace: %s | Kind: %s\n\n", report.Namespace, report.Kind))
+	markdown.WriteString(fmt.Sprintf("## Namespace: %s | Kind: %s | Total Cost: %.2f\n\n", report.Namespace, report.Kind, report.TotalCost))
 
 	// Iterate over results
 	for _, result := range report.ReportResults {
 		markdown.WriteString(fmt.Sprintf("### Target: %s\n\n", result.Target))
 
 		// Target cost table
-		markdown.WriteString("| Target | Misconfiguration Cost | Vulnerability Cost | Secrets Cost |\n")
-		markdown.WriteString("| --- | --- | --- | --- |\n")
-		markdown.WriteString(fmt.Sprintf("| %s | %.2f | %.2f | %.2f |\n\n",
+		markdown.WriteString("| Target | Misconfiguration Cost | Vulnerability Cost | Secrets Cost | Asset Value | ExploitLikelihood | Compliance Penalty | DowntimeCost | CostGrowthRate |\n")
+		markdown.WriteString("| --- | --- | --- | --- | --- | --- | --- | --- | --- |\n")
+		markdown.WriteString(fmt.Sprintf("| %s | %.2f | %.2f | %.2f | %.2f | %.2f | %.2f | %.2f | %.2f | \n\n",
 			result.TargetsCostData.Target,
 			result.TargetsCostData.MisconfigCost,
 			result.TargetsCostData.VulnerabilityCost,
 			result.TargetsCostData.SecretCost,
+			result.TargetsCostData.AssetValue,
+			result.TargetsCostData.ExploitLikelihood,
+			result.TargetsCostData.CompliancePenalty,
+			result.TargetsCostData.DowntimeCost,
+			result.TargetsCostData.CostGrowthRate,
 		))
 
 		// Misconfigurations table
@@ -183,4 +188,32 @@ func (s *service) generateMarkdown(report models.Report) string {
 	}
 
 	return markdown.String()
+}
+
+func (s *service) adjustRiskCost(ctx context.Context, report models.Report, prevReport models.ReportConfig) models.Report {
+
+	for i, r := range report.ReportResults {
+		growthRate, err := s.reportmetarepo.GetGrowthRatePerDay(ctx, r.Target)
+		if err != nil {
+			log.Println("Error getting growth rate: ", err)
+			continue
+		}
+
+		if _, ok := prevReport.TargetConfig[r.Target]; !ok {
+			continue
+		}
+		timeElapsed := calculateTimeElapsed(prevReport.TargetConfig[r.Target])
+
+		vulnCost := calculateTimeAdjustedRisk(r.TargetsCostData.VulnerabilityCost, timeElapsed, growthRate)
+		misConfigCost := calculateTimeAdjustedRisk(r.TargetsCostData.MisconfigCost, timeElapsed, growthRate)
+		secretCost := calculateTimeAdjustedRisk(r.TargetsCostData.SecretCost, timeElapsed, growthRate)
+
+		report.ReportResults[i].TargetsCostData.VulnerabilityCost = vulnCost
+		report.ReportResults[i].TargetsCostData.MisconfigCost = misConfigCost
+		report.ReportResults[i].TargetsCostData.SecretCost = secretCost
+		report.ReportResults[i].TargetsCostData.CostGrowthRate = growthRate
+	}
+
+	report.TotalCost = s.calculateTotalCost(report.ReportResults)
+	return report
 }

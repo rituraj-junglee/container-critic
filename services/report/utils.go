@@ -1,5 +1,9 @@
 package report
 
+import (
+	"time"
+)
+
 func calculateVulnerabilityRisk(severity string, assetValue, exploitLikelihood, compliancePenalty, downtimeCost float64) float64 {
 	severityFactor := map[string]float64{
 		"LOW":      0.1,
@@ -32,6 +36,12 @@ func calculateSecretRisk(sensitivity string, assetValue, exploitPotential, compl
 	return (assetValue * sensitivityFactor) + (exploitPotential * incidentCost) + compliancePenalty
 }
 
-func calculateTimeAdjustedRisk(_ string, baseRisk, timeElapsed, growthRate float64) float64 {
-	return baseRisk * (1 + growthRate*timeElapsed)
+func calculateTimeAdjustedRisk(baseRisk, timeElapsed, growthRate float64) float64 {
+	return baseRisk * (1 + (growthRate * timeElapsed))
+}
+
+func calculateTimeElapsed(startTime int64) float64 { // in days
+	t := time.UnixMilli(startTime)
+	return time.Since(t).Hours() / 24
+
 }

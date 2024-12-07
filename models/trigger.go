@@ -21,32 +21,32 @@ type Result struct {
 }
 
 type Vulnerability struct {
-	VulnerabilityID  string   `json:"VulnerabilityID"`
-	PkgName          string   `json:"PkgName"`
-	InstalledVersion string   `json:"InstalledVersion"`
-	FixedVersion     string   `json:"FixedVersion"`
-	Title            string   `json:"Title"`
-	Description      string   `json:"Description"`
-	Severity         string   `json:"Severity"`
-	References       []string `json:"References"`
+	VulnerabilityID  string   `json:"VulnerabilityID" bson:"vulnerability_id"`
+	PkgName          string   `json:"PkgName" bson:"pkg_name"`
+	InstalledVersion string   `json:"InstalledVersion" bson:"installed_version"`
+	FixedVersion     string   `json:"FixedVersion" bson:"fixed_version"`
+	Title            string   `json:"Title" bson:"title"`
+	Description      string   `json:"Description" bson:"description"`
+	Severity         string   `json:"Severity" bson:"severity"`
+	References       []string `json:"References" bson:"references"`
 }
 
 type Misconfiguration struct {
-	Type        string   `json:"Type"`
-	ID          string   `json:"ID"`
-	AVDID       string   `json:"AVDID"`
-	Title       string   `json:"Title"`
-	Description string   `json:"Description"`
-	Message     string   `json:"Message"`
-	Namespace   string   `json:"Namespace"`
-	Query       string   `json:"Query"`
-	Resolution  string   `json:"Resolution"`
-	Severity    string   `json:"Severity"`
-	PrimaryURL  string   `json:"PrimaryURL"`
-	References  []string `json:"References"`
-	Status      string   `json:"Status"`
+	Type        string   `json:"Type" bson:"type"`
+	ID          string   `json:"ID" bson:"id"`
+	AVDID       string   `json:"AVDID" bson:"avd_id"`
+	Title       string   `json:"Title" bson:"title"`
+	Description string   `json:"Description" bson:"description"`
+	Message     string   `json:"Message" bson:"message"`
+	Namespace   string   `json:"Namespace" bson:"namespace"`
+	Query       string   `json:"Query" bson:"query"`
+	Resolution  string   `json:"Resolution" bson:"resolution"`
+	Severity    string   `json:"Severity" bson:"severity"`
+	PrimaryURL  string   `json:"PrimaryURL" bson:"primary_url"`
+	References  []string `json:"References" bson:"references"`
+	Status      string   `json:"Status" bson:"status"`
 }
 
 type Secrets struct {
-	Severity string `json:"Severity"`
+	Severity string `json:"Severity" bson:"severity"`
 }
