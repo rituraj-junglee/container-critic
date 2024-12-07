@@ -45,7 +45,7 @@ func (s *service) TrivyTrigger(ctx context.Context, triggerReq models.TriggerReq
 	}
 
 	// Send Messsage to the slack channel
-	message := fmt.Sprintf("⚠️ Report for cluster:\n %s\n\nTotal Cost: %.2f\n\n ", reportReq.ClusterName, report.TotalCost)
+	message := fmt.Sprintf("⚠️ Report for cluster:\n `%s`\n\nTotal Cost: %.2f\n\n ", reportReq.ClusterName, report.TotalCost)
 	err = s.slacksvc.SendMessage(ctx, message)
 	if err != nil {
 		log.Println("Error sending message: ", err)
